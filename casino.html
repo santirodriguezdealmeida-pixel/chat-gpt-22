@@ -6,22 +6,138 @@
     <title>Simulador de Casino - Dados</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; width: 100%; max-width: 1000px; margin-top: 20px; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; text-align: center; }
-        .highlight { font-size: 24px; font-weight: bold; color: #4caf50; }
-        .loss { color: #f44336; }
-        button { background: #6200ee; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 18px; cursor: pointer; transition: 0.3s; }
-        button:hover { background: #3700b3; }
-        #chart-container { width: 100%; max-width: 800px; margin-top: 30px; background: #1e1e1e; padding: 20px; border-radius: 12px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .controls {
+            width: 100%;
+            max-width: 900px;
+            margin-top: 10px;
+            padding: 16px;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 14px;
+            color: #cfcfcf;
+        }
+
+        .field input {
+            background: #2a2a2a;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            text-align: center;
+        }
+
+        .highlight {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4caf50;
+        }
+
+        .loss {
+            color: #f44336;
+        }
+
+        button {
+            background: #6200ee;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #3700b3;
+        }
+
+        .secondary {
+            background: #37474f;
+        }
+
+        .secondary:hover {
+            background: #263238;
+        }
+
+        #chart-container {
+            width: 100%;
+            max-width: 980px;
+            margin-top: 30px;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+        }
     </style>
 </head>
 <body>
 
     <h1>Simulador de Casino: Suma de Dados</h1>
     <p>Cuotas: 2/12 (34x) | 3/11 (17x) | 4/10 (11.4x) | 5/9 (8.5x) | 6/8 (6.8x) | 7 (5.7x)</p>
-    
-    <button onclick="simularMuchaTiradas(10000)">Simular 10.000 Tiradas</button>
+
+    <div class="controls">
+        <div class="field">
+            <label for="cantidadTiradas">Cantidad de tiradas</label>
+            <input id="cantidadTiradas" type="number" min="1" step="1" value="1000">
+        </div>
+
+        <div class="field">
+            <label for="montoBase">Monto por número apostado</label>
+            <input id="montoBase" type="number" min="0.01" step="0.01" value="1">
+        </div>
+
+        <div class="button-group">
+            <button onclick="simularDesdeControles()">Simular</button>
+            <button class="secondary" onclick="resetearSimulacion()">Resetear</button>
+        </div>
+    </div>
 
     <div class="stats-grid">
         <div class="card">
@@ -52,59 +168,138 @@
             7: 5.7
         };
 
-        let historialSumas = new Array(13).fill(0);
         let totalApostado = 0;
         let totalPagado = 0;
+        let tiradaActual = 0;
+        let timelineLabels = [];
+        let timelineGananciaCasino = [];
 
-        function simularMuchaTiradas(cantidad) {
+        function simularDesdeControles() {
+            const cantidad = Number.parseInt(document.getElementById('cantidadTiradas').value, 10);
+            const montoBase = Number.parseFloat(document.getElementById('montoBase').value);
+
+            if (!Number.isFinite(cantidad) || cantidad <= 0) {
+                alert('Ingresá una cantidad de tiradas válida (mayor a 0).');
+                return;
+            }
+
+            if (!Number.isFinite(montoBase) || montoBase <= 0) {
+                alert('Ingresá un monto válido (mayor a 0).');
+                return;
+            }
+
+            simularMuchasTiradas(cantidad, montoBase);
+        }
+
+        function simularMuchasTiradas(cantidad, montoBase) {
             for (let i = 0; i < cantidad; i++) {
-                // El jugador apuesta 1 unidad a cada número posible (estrategia balanceada)
-                // Son 11 apuestas por tirada (del 2 al 12)
-                const apuestaPorTirada = 11; 
+                // Estrategia balanceada: se apuesta al 2..12.
+                const apuestaPorTirada = 11 * montoBase;
                 totalApostado += apuestaPorTirada;
 
                 const d1 = Math.floor(Math.random() * 6) + 1;
                 const d2 = Math.floor(Math.random() * 6) + 1;
                 const suma = d1 + d2;
 
-                historialSumas[suma]++;
-                totalPagado += cuotas[suma];
+                totalPagado += cuotas[suma] * montoBase;
+
+                tiradaActual += 1;
+                timelineLabels.push(tiradaActual);
+                timelineGananciaCasino.push(totalApostado - totalPagado);
             }
+
+            actualizarUI();
+        }
+
+        function resetearSimulacion() {
+            totalApostado = 0;
+            totalPagado = 0;
+            tiradaActual = 0;
+            timelineLabels = [];
+            timelineGananciaCasino = [];
             actualizarUI();
         }
 
         function actualizarUI() {
             const ganancia = totalApostado - totalPagado;
-            const margen = (ganancia / totalApostado) * 100;
+            const margen = totalApostado > 0 ? (ganancia / totalApostado) * 100 : 0;
 
-            document.getElementById('totalApostado').innerText = `$${totalApostado.toLocaleString()}`;
+            document.getElementById('totalApostado').innerText = `$${totalApostado.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
             document.getElementById('gananciaCasino').innerText = `$${ganancia.toLocaleString(undefined, {maximumFractionDigits: 2})}`;
             document.getElementById('margenPorcentaje').innerText = `${margen.toFixed(2)}%`;
-            
-            if(ganancia < 0) document.getElementById('gananciaCasino').classList.add('loss');
-            else document.getElementById('gananciaCasino').classList.remove('loss');
 
-            myChart.data.datasets[0].data = historialSumas.slice(2);
+            const gananciaElement = document.getElementById('gananciaCasino');
+            if (ganancia < 0) gananciaElement.classList.add('loss');
+            else gananciaElement.classList.remove('loss');
+
+            myChart.data.labels = timelineLabels;
+            myChart.data.datasets[0].data = timelineGananciaCasino;
+            myChart.data.datasets[1].data = new Array(timelineGananciaCasino.length).fill(0);
             myChart.update();
         }
 
         const ctx = document.getElementById('myChart').getContext('2d');
         const myChart = new Chart(ctx, {
-            type: 'bar',
+            type: 'line',
             data: {
-                labels: ['2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
-                datasets: [{
-                    label: 'Frecuencia de Resultados',
-                    data: historialSumas.slice(2),
-                    backgroundColor: '#6200ee'
-                }]
+                labels: timelineLabels,
+                datasets: [
+                    {
+                        label: 'Ganancia acumulada del casino',
+                        data: timelineGananciaCasino,
+                        borderColor: '#4caf50',
+                        borderWidth: 2,
+                        tension: 0.15,
+                        pointRadius: 0,
+                        segment: {
+                            borderColor: (ctx) => {
+                                const y0 = ctx.p0.parsed.y;
+                                const y1 = ctx.p1.parsed.y;
+                                return (y0 < 0 || y1 < 0) ? '#f44336' : '#4caf50';
+                            }
+                        }
+                    },
+                    {
+                        label: 'Punto de equilibrio (0)',
+                        data: [],
+                        borderColor: '#888',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        pointRadius: 0
+                    }
+                ]
             },
             options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: '#333' } },
-                    x: { grid: { display: false } }
+                    y: {
+                        grid: { color: '#333' },
+                        ticks: { color: 'white' },
+                        title: {
+                            display: true,
+                            text: 'Ganancia/Pérdida acumulada ($)',
+                            color: 'white'
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'white' },
+                        title: {
+                            display: true,
+                            text: 'Línea temporal de tiradas',
+                            color: 'white'
+                        }
+                    }
                 },
-                plugins: { legend: { labels: { color: 'white' } } }
+                plugins: {
+                    legend: { labels: { color: 'white' } },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.dataset.label}: $${context.parsed.y.toFixed(2)}`
+                        }
+                    }
+                }
             }
         });
     </script>
